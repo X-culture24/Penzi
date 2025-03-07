@@ -126,13 +126,13 @@ Before you begin, ensure you have the following installed on your system:
 
 ### Dashboard
 - The dashboard displays user profiles, matches, and messages.
-- Users can swipe through profiles, like/dislike, and send messages.
+- Users can swipe through profiles and send messages.
 
 ### Chat Feature
 - Real-time chat functionality is powered by Flask-SocketIO.
 - Users can send and receive messages instantly.
 
 ### Profile Management
-- Users can update their profiles, upload photos, and change preferences.
+- Users can update their profiles
 
 ---
