@@ -126,7 +126,7 @@ Before you begin, ensure you have the following installed on your system:
 
 ### Dashboard
 - The dashboard displays user profiles, matches, and messages.
-- Users can swipe through profiles and send messages.
+
 
 ### Chat Feature
 - Real-time chat functionality is powered by Flask-SocketIO.
