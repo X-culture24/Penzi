@@ -11,13 +11,14 @@ approval_status_enum = Enum("Pending", "Approved", "Declined", name="approval_st
 
 # ✅ Users Table
 class User(db.Model):
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    age = Column(Integer, nullable=False)
-    gender = Column(gender_enum, nullable=False)  # ✅ Uses named ENUM
-    county = Column(String(100), nullable=False)
-    town = Column(String(100), nullable=False)
-    phone_number = Column(String(20), unique=True, nullable=False)  # ✅ Unique phone number
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    age = db.Column(db.Integer, nullable=False)
+    gender = db.Column(db.String(10), nullable=False)
+    county = db.Column(db.String(100), nullable=False)
+    town = db.Column(db.String(100), nullable=False)
+    phone_number = db.Column(db.String(15), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)  # ✅ Ensure this is here!
 
 
 # ✅ UserDetails Table

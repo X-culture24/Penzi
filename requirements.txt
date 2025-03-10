@@ -2,3 +2,5 @@
  flask-sqlalchemy
  flask-migrate flask-jwt-extended
  psycopg2-binary
+ flask-cors
+ flask-bycrypt

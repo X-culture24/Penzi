@@ -10,6 +10,7 @@ function Register() {
     county: "",
     town: "",
     phone_number: "",
+    password: "",
   });
 
   const [message, setMessage] = useState("");
@@ -62,6 +63,17 @@ function Register() {
         <div className="mb-3">
           <label className="form-label">Phone Number:</label>
           <input type="text" name="phone_number" className="form-control" value={formData.phone_number} onChange={handleChange} required />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">Password:</label>
+          <input
+            type="password"
+            name="password"
+            className="form-control"
+            value={formData.password}
+            onChange={handleChange}
+            required
+          />
         </div>
         <button type="submit" className="btn btn-primary">Register</button>
       </form>
