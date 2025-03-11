@@ -1,9 +1,6 @@
 
 #  Penzi App - Flask & React
 
-This project is a **USSD-based dating service** built with **Flask (backend)** and **React (frontend)**.  
-It allows users to **register, find matches, and communicate** via SMS-based interactions.
-
 ---
 
 ## ** Tech Stack**
