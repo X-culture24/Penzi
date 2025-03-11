@@ -12,16 +12,25 @@ function Login() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setMessage(""); // Clear previous errors
+
         try {
             const response = await axios.post("http://localhost:5000/login", {
                 phone_number: phoneNumber,
                 password: password,
             });
 
-            login(response.data.token);
-            navigate("/dashboard");
+            const token = response.data.token;
+
+            if (token) {
+                localStorage.setItem("token", token); // ✅ Store token
+                login(token); // ✅ Update AuthContext
+                navigate("/dashboard"); // ✅ Redirect
+            } else {
+                setMessage("Login failed. Please try again.");
+            }
         } catch (error) {
-            setMessage("Invalid phone number or password.");
+            setMessage(error.response?.data?.error || "Invalid phone number or password.");
         }
     };
 

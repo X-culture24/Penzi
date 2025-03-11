@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 
 function UserDetails() {
   const [formData, setFormData] = useState({
-    user_id: "", // This should be set after registration
     level_of_education: "",
     profession: "",
     marital_status: "",
@@ -21,11 +20,15 @@ function UserDetails() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Submitting Data:", formData);  // ✅ Debugging output
+
     try {
       const response = await addUserDetails(formData);
+      console.log("Response:", response.data);
       setMessage(response.data.message);
-      setTimeout(() => navigate("/self-description"), 2000); // Redirect to self-description
+      setTimeout(() => navigate("/self-description"), 2000);
     } catch (error) {
+      console.error("Error Response:", error.response?.data);
       setMessage(error.response?.data?.error || "Submission failed");
     }
   };

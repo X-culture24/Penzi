@@ -1,13 +1,14 @@
 import os
 import datetime
 from flask import Blueprint, request, jsonify, session
-from flask_bcrypt import Bcrypt  # ✅ Initialize Bcrypt here
+from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from models import db, User, UserDetails, SelfDescription, MatchRequest, Match, Message, ApprovalRequest
 
 routes_bp = Blueprint("routes", __name__)
 
 bcrypt = Bcrypt()  # ✅ Initialize Bcrypt
+
 
 # ✅ Home Route
 @routes_bp.route("/", methods=["GET"])
@@ -33,7 +34,7 @@ def register_user():
         county=data["county"],
         town=data["town"],
         phone_number=data["phone_number"],
-        password=hashed_password  # Store hashed password
+        password=hashed_password
     )
 
     db.session.add(new_user)
@@ -55,8 +56,7 @@ def login():
     if not user or not bcrypt.check_password_hash(user.password, data["password"]):
         return jsonify({"error": "Invalid phone number or password"}), 401
 
-    # Generate JWT Token
-    access_token = create_access_token(identity=user.id, expires_delta=datetime.timedelta(days=1))
+    access_token = create_access_token(identity=str(user.id), expires_delta=datetime.timedelta(days=1))
 
     return jsonify({
         "message": "Login successful!",
@@ -69,23 +69,31 @@ def login():
     })
 
 
-# ✅ 3. Add User Details
+# ✅ 3. Add User Details (Fetching user_id from JWT) - 🔥 FIXED ISSUE 🔥
+
 @routes_bp.route("/user/details", methods=["POST"])
 @jwt_required()
 def add_user_details():
-    user_id = get_jwt_identity()  # Get logged-in user ID from JWT
+    user_id = get_jwt_identity()
     data = request.json
 
     required_fields = ["level_of_education", "profession", "marital_status", "religion", "ethnicity"]
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Missing required fields"}), 400
 
+    # ✅ Convert religion to lowercase to match ENUM values
+    allowed_religions = {"christianity", "islam", "hinduism", "buddhism", "atheism"}
+    religion = data["religion"].lower()
+
+    if religion not in allowed_religions:
+        return jsonify({"error": f"Invalid religion: {data['religion']}. Allowed values: {list(allowed_religions)}"}), 400
+
     new_details = UserDetails(
         user_id=user_id,
         level_of_education=data["level_of_education"],
         profession=data["profession"],
         marital_status=data["marital_status"],
-        religion=data["religion"],
+        religion=religion,  # ✅ Save lowercase value
         ethnicity=data["ethnicity"]
     )
 
@@ -95,22 +103,39 @@ def add_user_details():
     return jsonify({"message": "Additional details saved successfully!"})
 
 
-# ✅ 4. Self-Description
-@routes_bp.route("/user/self-description", methods=["POST"])
+
+@routes_bp.route("/user/self-description", methods=["OPTIONS", "POST"])
 @jwt_required()
 def add_self_description():
-    user_id = get_jwt_identity()
-    data = request.json
+    if request.method == "OPTIONS":
+        return jsonify({"message": "CORS preflight successful"}), 200  # ✅ Handle preflight request
 
-    if "description" not in data:
-        return jsonify({"error": "Missing description"}), 400
+    try:
+        user_id = get_jwt_identity()
+        data = request.json
 
-    new_description = SelfDescription(user_id=user_id, description=data["description"])
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
 
-    db.session.add(new_description)
-    db.session.commit()
+        description = data.get("description")
+        if not description:
+            return jsonify({"error": "Missing description"}), 400
 
-    return jsonify({"message": "Self-description saved successfully!"})
+        existing_description = SelfDescription.query.filter_by(user_id=user_id).first()
+        if existing_description:
+            return jsonify({"error": "Self-description already exists. Update instead."}), 409
+
+        new_description = SelfDescription(user_id=user_id, description=description)
+        db.session.add(new_description)
+        db.session.commit()
+
+        return jsonify({"message": "Self-description saved successfully!"}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 
 
 # ✅ 5. Match Request (Return First 3 Matches)
@@ -133,7 +158,7 @@ def request_match():
     if not matches:
         return jsonify({"message": "No matches found"}), 404
 
-    session["last_match_offset"] = 3  # Track offset for next match request
+    session["last_match_offset"] = 3
     match_list = [{"name": m.name, "age": m.age, "phone_number": m.phone_number} for m in matches]
 
     return jsonify({
@@ -171,12 +196,50 @@ def get_more_matches():
     })
 
 
-# ✅ 7. Logout Route (Clears JWT Token)
+# ✅ 7. Send Message
+@routes_bp.route("/message", methods=["POST"])
+@jwt_required()
+def send_message():
+    user_id = get_jwt_identity()
+    data = request.json
+
+    required_fields = ["receiver_id", "content"]
+    if not all(key in data for key in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    new_message = Message(
+        sender_id=user_id,
+        receiver_id=data["receiver_id"],
+        content=data["content"]
+    )
+
+    db.session.add(new_message)
+    db.session.commit()
+
+    return jsonify({"message": "Message sent successfully!"})
+
+
+# ✅ 8. Approve Match
+@routes_bp.route("/approve", methods=["POST"])
+@jwt_required()
+def approve_match():
+    user_id = get_jwt_identity()
+    data = request.json
+
+    if "match_id" not in data:
+        return jsonify({"error": "Match ID is required"}), 400
+
+    new_approval = ApprovalRequest(user_id=user_id, match_id=data["match_id"])
+
+    db.session.add(new_approval)
+    db.session.commit()
+
+    return jsonify({"message": "Match approved successfully!"})
+
+
+# ✅ 9. Logout Route (Clears JWT Token)
 @routes_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
     session.clear()  # Clears session data
     return jsonify({"message": "Logged out successfully!"})
-
-
-# ✅ Protect Any Other Routes with `@jwt_required()`

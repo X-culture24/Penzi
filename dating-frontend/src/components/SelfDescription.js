@@ -1,7 +1,15 @@
 import { useState } from "react";
 import axios from "axios";
 
-function SelfDescription({ userPhone }) {
+const API_URL = "http://localhost:5000";
+
+// ✅ Function to get token from localStorage
+const getAuthHeaders = () => {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+function SelfDescription() {
     const [description, setDescription] = useState("");
     const [message, setMessage] = useState("");
 
@@ -9,15 +17,18 @@ function SelfDescription({ userPhone }) {
         e.preventDefault();
 
         try {
-            const response = await axios.post("http://localhost:5000/user/self-description", {
-                phone_number: userPhone,
-                description: description,
-            });
+            // ✅ Add Auth Headers (JWT Token)
+            const response = await axios.post(
+                `${API_URL}/user/self-description`,
+                { description },
+                { headers: getAuthHeaders() } // 🔥 Include JWT headers
+            );
 
             setMessage(response.data.message);
             setDescription("");
         } catch (error) {
             setMessage("Error submitting self-description.");
+            console.error("Submission error:", error.response ? error.response.data : error);
         }
     };
 

@@ -1,24 +1,18 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 
 db = SQLAlchemy()
-
-# ✅ ENUM Fix: All Enums now have explicit names
-marital_status_enum = Enum("Single", "Married", "Divorced", name="marital_status_enum")
-religion_enum = Enum("Christian", "Muslim", "Other", name="religion_enum")
-gender_enum = Enum("Male", "Female", name="gender_enum")
-approval_status_enum = Enum("Pending", "Approved", "Declined", name="approval_status_enum")
 
 # ✅ Users Table
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     age = db.Column(db.Integer, nullable=False)
-    gender = db.Column(db.String(10), nullable=False)
+    gender = db.Column(db.String(10), nullable=False)  # ✅ Now a String instead of ENUM
     county = db.Column(db.String(100), nullable=False)
     town = db.Column(db.String(100), nullable=False)
     phone_number = db.Column(db.String(15), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)  # ✅ Ensure this is here!
+    password = db.Column(db.String(255), nullable=False)
 
 
 # ✅ UserDetails Table
@@ -27,8 +21,8 @@ class UserDetails(db.Model):
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     level_of_education = Column(String(100), nullable=False)
     profession = Column(String(100), nullable=False)
-    marital_status = Column(marital_status_enum, nullable=False)  # ✅ Uses named ENUM
-    religion = Column(religion_enum, nullable=False)  # ✅ Uses named ENUM
+    marital_status = Column(String(20), nullable=False)  # ✅ Changed ENUM to String
+    religion = Column(String(50), nullable=False)  # ✅ Changed ENUM to String
     ethnicity = Column(String(100), nullable=False)
 
 
@@ -68,4 +62,4 @@ class ApprovalRequest(db.Model):
     id = Column(Integer, primary_key=True)
     matched_user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     requesting_user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    status = Column(approval_status_enum, default="Pending", nullable=False)  # ✅ Uses named ENUM
+    status = Column(String(20), default="Pending", nullable=False)  # ✅ Changed ENUM to String

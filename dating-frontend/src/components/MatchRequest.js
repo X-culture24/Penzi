@@ -9,18 +9,32 @@ function MatchRequest({ userPhone }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        try {
-            const response = await axios.post("http://localhost:5000/match/request", {
-                phone_number: userPhone,  // Use phone number instead of user_id
-                age_range: ageRange,
-                town: town,
-            });
+        const token = localStorage.getItem("token"); // ✅ Retrieve token
 
-            setMessage(response.data.message);
+        if (!token) {
+            setMessage("You must be logged in to request a match.");
+            return;
+        }
+
+        try {
+            const response = await axios.post(
+                "http://localhost:5000/match/request",
+                {
+                    age_range: ageRange,
+                    town: town,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`, // ✅ Include JWT token
+                    },
+                }
+            );
+
+            setMessage(response.data.message || "Match request successful!");
             setAgeRange("");
             setTown("");
         } catch (error) {
-            setMessage("Error submitting match request.");
+            setMessage(error.response?.data?.error || "Error submitting match request.");
         }
     };
 
