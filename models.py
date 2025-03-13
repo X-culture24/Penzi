@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 
 db = SQLAlchemy()
 
-# ✅ Users Table
+# ✅ users Table
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -12,10 +12,9 @@ class User(db.Model):
     county = db.Column(db.String(100), nullable=False)
     town = db.Column(db.String(100), nullable=False)
     phone_number = db.Column(db.String(15), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
 
 
-# ✅ UserDetails Table
+# ✅ user_details Table
 class UserDetails(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
