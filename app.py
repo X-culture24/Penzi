@@ -8,12 +8,13 @@ from models import db, User, UserDetails, SelfDescription, Match, Message
 
 app = Flask(__name__)
 
-# ✅ Set a Secret Key (required for session)
+# ✅ Set Secret Key (required for session management)
 app.secret_key = os.urandom(24)
+
 # ✅ Enable CORS
 CORS(app)
 
-# ✅ Database Configuration
+# ✅ Database Configuration (Replace with your credentials)
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://kevin:kevin123@localhost/penzi_app"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -34,12 +35,15 @@ def save_message(phone_number, content, is_system_message=False):
     )
     db.session.add(new_message)
     db.session.commit()
-
     return new_message
 
 # ✅ Helper: Get User by Phone Number
 def get_user_by_phone(phone_number):
     return User.query.filter_by(phone_number=phone_number).first()
+
+# ✅ Helper: Notify User
+def notify_user(target_phone, content):
+    save_message(target_phone, content, is_system_message=True)
 
 # ✅ Main API Endpoint (One URL for All Operations)
 @app.route("/penzi", methods=["POST"])
@@ -53,10 +57,13 @@ def penzi_chatbot():
 
     user = get_user_by_phone(phone_number)
 
+    # Save user's message
     save_message(phone_number, user_input, is_system_message=False)
 
+    # Process input and generate response
     response = process_user_input(user, user_input, phone_number)
 
+    # Save system's response
     save_message(phone_number, response, is_system_message=True)
 
     return jsonify({"response": response})
@@ -67,6 +74,12 @@ def process_user_input(user, user_input, phone_number):
 
     # 🟢 Activation
     if user_input == "penzi":
+        if user:
+            return (
+                "Proceed with match requests. You are already registered.\n"
+                "Send: match#ageRange#town to find matches.\n"
+                "Example: match#25-35#Nairobi"
+            )
         return "Welcome to Penzi! To register, send: start#name#age#gender#county#town."
 
     # 🟢 Registration
@@ -75,15 +88,19 @@ def process_user_input(user, user_input, phone_number):
             _, name, age, gender, county, town = user_input.split("#")
             age = int(age)
         except ValueError:
-            return "Invalid format. Please send: start#name#age#gender#county#town."
+            return "Invalid format. Use: start#name#age#gender#county#town."
 
         if user:
-            return "You are already registered."
+            return (
+                "You are already registered. Proceed with match requests.\n"
+                "Send: match#ageRange#town to find matches.\n"
+                "Example: match#25-35#Nairobi"
+            )
 
         new_user = User(
             name=name,
             age=age,
-            gender=gender,
+            gender=gender.lower(),
             county=county,
             town=town,
             phone_number=phone_number
@@ -125,16 +142,13 @@ def process_user_input(user, user_input, phone_number):
         if not description:
             return "Please provide a description."
 
-        self_description = SelfDescription(
-            user_id=user.id,
-            description=description
-        )
+        self_description = SelfDescription(user_id=user.id, description=description)
         db.session.add(self_description)
         db.session.commit()
 
         return "Self-description saved! Send: match#ageRange#town to find matches."
 
-    # 🟢 Match Request
+    # 🟢 Match Request (Find Matches)
     elif user_input.startswith("match#"):
         if not user:
             return "Register first: start#name#age#gender#county#town."
@@ -143,12 +157,16 @@ def process_user_input(user, user_input, phone_number):
             _, age_range, town = user_input.split("#")
             min_age, max_age = map(int, age_range.split("-"))
         except ValueError:
-            return "Invalid format. Use: match#ageRange#town."
+            return "Invalid format. Use: match#ageRange#town. Example: match#25-35#Nairobi"
+
+        # Ensure opposite gender matching
+        opposite_gender = "male" if user.gender == "female" else "female"
 
         matches = User.query.filter(
             User.age.between(min_age, max_age),
             User.town.ilike(town),
-            User.gender != user.gender
+            User.gender == opposite_gender,
+            User.id != user.id
         ).all()
 
         if not matches:
@@ -161,29 +179,10 @@ def process_user_input(user, user_input, phone_number):
         session["match_offset"] = 3
 
         match_list = [
-            f"{m.name}, aged {m.age}, from {m.town}"
+            f"{m.name}, {m.age} years, {m.town}, Contact: {m.phone_number}"
             for m in first_batch
         ]
-        return f"We found {len(matches)} matches! Here are the first 3:\n" + "\n".join(match_list) + "\nSend NEXT for more."
-
-    # 🟢 Next Matches
-    elif user_input == "next":
-        match_ids = session.get("matches", [])
-        offset = session.get("match_offset", 0)
-
-        if not match_ids or offset >= len(match_ids):
-            return "No more matches available."
-
-        next_batch_ids = match_ids[offset:offset + 3]
-        matches = User.query.filter(User.id.in_(next_batch_ids)).all()
-
-        session["match_offset"] = offset + 3
-
-        match_list = [
-            f"{m.name}, aged {m.age}, from {m.town}"
-            for m in matches
-        ]
-        return "Next matches:\n" + "\n".join(match_list)
+        return f"We found {len(matches)} matches! Here are the first 3:\n" + "\n".join(match_list) + "\nSend NEXT for more or MOREDETAILS#<phone_number>."
 
     else:
         return "Invalid command. Try again."

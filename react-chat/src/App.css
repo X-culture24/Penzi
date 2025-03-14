@@ -1,0 +1,39 @@
+/* App.css */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background: #f0f2f5;
+}
+
+.app-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.phone-input-container {
+  text-align: center;
+}
+
+input {
+  padding: 10px;
+  margin: 10px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 20px;
+  background-color: #6a0dad;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #5b0bab;
+}
+
