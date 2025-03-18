@@ -8,24 +8,25 @@ from models import db, User, UserDetails, SelfDescription, Match, Message
 
 app = Flask(__name__)
 
-# ✅ Set Secret Key (required for session management)
+# ✅ Secret Key (for session handling)
 app.secret_key = os.urandom(24)
 
 # ✅ Enable CORS
 CORS(app)
 
-# ✅ Database Configuration (Replace with your credentials)
+# ✅ Database Configuration
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://kevin:kevin123@localhost/penzi_app"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# ✅ Initialize Extensions
+# ✅ Initialize DB and Migrations
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# ✅ Helper: Save Message to Database
+# ✅ Helper: Save Message
 def save_message(phone_number, content, is_system_message=False):
     user = User.query.filter_by(phone_number=phone_number).first()
     if not user:
+        print(f"❌ User not found for phone number: {phone_number}")
         return None
 
     new_message = Message(
@@ -35,20 +36,28 @@ def save_message(phone_number, content, is_system_message=False):
     )
     db.session.add(new_message)
     db.session.commit()
+    print(f"✅ Message saved: {content}")
     return new_message
 
 # ✅ Helper: Get User by Phone Number
 def get_user_by_phone(phone_number):
-    return User.query.filter_by(phone_number=phone_number).first()
+    user = User.query.filter_by(phone_number=phone_number).first()
+    if user:
+        print(f"✅ User found: {user.phone_number}")
+    else:
+        print(f"❌ No user found for {phone_number}")
+    return user
 
 # ✅ Helper: Notify User
 def notify_user(target_phone, content):
     save_message(target_phone, content, is_system_message=True)
 
-# ✅ Main API Endpoint (One URL for All Operations)
+# ✅ Main Endpoint
 @app.route("/penzi", methods=["POST"])
 def penzi_chatbot():
     data = request.json
+    print(f"📥 Incoming request: {data}")
+
     phone_number = data.get("phone_number")
     user_input = data.get("message")
 
@@ -57,22 +66,22 @@ def penzi_chatbot():
 
     user = get_user_by_phone(phone_number)
 
-    # Save user's message
+    # Save User Message
     save_message(phone_number, user_input, is_system_message=False)
 
-    # Process input and generate response
+    # Process Input
     response = process_user_input(user, user_input, phone_number)
 
-    # Save system's response
+    # Save System Response
     save_message(phone_number, response, is_system_message=True)
 
-    return jsonify({"response": response})
+    return jsonify({"response": response, "reply": response})
 
-# ✅ Helper: Process User Input
+# ✅ Process User Input
 def process_user_input(user, user_input, phone_number):
     user_input = user_input.lower().strip()
 
-    # 🟢 Activation
+    # 🟢 Activation Command
     if user_input == "penzi":
         if user:
             return (
@@ -82,109 +91,52 @@ def process_user_input(user, user_input, phone_number):
             )
         return "Welcome to Penzi! To register, send: start#name#age#gender#county#town."
 
-    # 🟢 Registration
-    elif user_input.startswith("start#"):
+    # 🟢 MOREDETAILS <phone_number>
+    elif user_input.startswith("moredetails"):
         try:
-            _, name, age, gender, county, town = user_input.split("#")
-            age = int(age)
+            _, target_phone = user_input.split(" ")
         except ValueError:
-            return "Invalid format. Use: start#name#age#gender#county#town."
+            print("❌ Invalid MOREDETAILS format.")
+            return "Invalid format. Use: MOREDETAILS <phone_number>"
 
-        if user:
-            return (
-                "You are already registered. Proceed with match requests.\n"
-                "Send: match#ageRange#town to find matches.\n"
-                "Example: match#25-35#Nairobi"
-            )
+        target_user = get_user_by_phone(target_phone)
+        if not target_user:
+            return "User not found."
 
-        new_user = User(
-            name=name,
-            age=age,
-            gender=gender.lower(),
-            county=county,
-            town=town,
-            phone_number=phone_number
+        user_details = UserDetails.query.filter_by(user_id=target_user.id).first()
+        if not user_details:
+            return f"No details available for {target_user.name}."
+
+        # Notify the Requested User
+        notify_user(target_phone, f"Hi {target_user.name}, someone is interested in you. Send YES to know more!")
+
+        return (
+            f"{target_user.name} ({target_user.age} years) from {target_user.town}.\n"
+            f"Education: {user_details.level_of_education}, Profession: {user_details.profession}, "
+            f"Marital: {user_details.marital_status}, Religion: {user_details.religion}, Ethnicity: {user_details.ethnicity}.\n"
+            f"Send DESCRIBE {target_phone} to know more."
         )
-        db.session.add(new_user)
-        db.session.commit()
 
-        return f"Welcome, {name}! Now send: details#education#profession#maritalStatus#religion#ethnicity."
-
-    # 🟢 User Details
-    elif user_input.startswith("details#"):
-        if not user:
-            return "Please register first by sending: start#name#age#gender#county#town."
-
+    # 🟢 DESCRIBE <phone_number>
+    elif user_input.startswith("describe"):
         try:
-            _, education, profession, marital_status, religion, ethnicity = user_input.split("#")
+            _, target_phone = user_input.split(" ")
         except ValueError:
-            return "Invalid format. Use: details#education#profession#maritalStatus#religion#ethnicity."
+            return "Invalid format. Use: DESCRIBE <phone_number>"
 
-        user_details = UserDetails(
-            user_id=user.id,
-            level_of_education=education,
-            profession=profession,
-            marital_status=marital_status,
-            religion=religion,
-            ethnicity=ethnicity
-        )
-        db.session.add(user_details)
-        db.session.commit()
+        target_user = get_user_by_phone(target_phone)
+        if not target_user:
+            return "User not found."
 
-        return "Details saved! Send: myself#description to describe yourself."
-
-    # 🟢 Self-Description
-    elif user_input.startswith("myself#"):
-        if not user:
-            return "Register first: start#name#age#gender#county#town."
-
-        description = user_input.replace("myself#", "").strip()
+        description = SelfDescription.query.filter_by(user_id=target_user.id).first()
         if not description:
-            return "Please provide a description."
+            return f"No self-description available for {target_user.name}."
 
-        self_description = SelfDescription(user_id=user.id, description=description)
-        db.session.add(self_description)
-        db.session.commit()
+        return f"{target_user.name} describes themselves as: {description.description}."
 
-        return "Self-description saved! Send: match#ageRange#town to find matches."
-
-    # 🟢 Match Request (Find Matches)
-    elif user_input.startswith("match#"):
-        if not user:
-            return "Register first: start#name#age#gender#county#town."
-
-        try:
-            _, age_range, town = user_input.split("#")
-            min_age, max_age = map(int, age_range.split("-"))
-        except ValueError:
-            return "Invalid format. Use: match#ageRange#town. Example: match#25-35#Nairobi"
-
-        # Ensure opposite gender matching
-        opposite_gender = "male" if user.gender == "female" else "female"
-
-        matches = User.query.filter(
-            User.age.between(min_age, max_age),
-            User.town.ilike(town),
-            User.gender == opposite_gender,
-            User.id != user.id
-        ).all()
-
-        if not matches:
-            return "No matches found."
-
-        session["matches"] = [m.id for m in matches]
-        session["match_offset"] = 0
-
-        first_batch = matches[:3]
-        session["match_offset"] = 3
-
-        match_list = [
-            f"{m.name}, {m.age} years, {m.town}, Contact: {m.phone_number}"
-            for m in first_batch
-        ]
-        return f"We found {len(matches)} matches! Here are the first 3:\n" + "\n".join(match_list) + "\nSend NEXT for more or MOREDETAILS#<phone_number>."
-
+    # 🟢 Default Invalid Command
     else:
+        print("❌ Unknown command.")
         return "Invalid command. Try again."
 
 # ✅ Run the Flask App
