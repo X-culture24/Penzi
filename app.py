@@ -5,8 +5,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
 from models import db, User, UserDetails, SelfDescription, Match, Message
-
+from dotenv import load_dotenv
 app = Flask(__name__)
+ #✅ Load environment variables from .env file
+load_dotenv()
 
 # ✅ Secret Key (for session handling)
 app.secret_key = os.urandom(24)
@@ -14,9 +16,11 @@ app.secret_key = os.urandom(24)
 # ✅ Enable CORS
 CORS(app)
 
-# ✅ Database Configuration
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://kevin:kevin123@localhost/penzi_app"
+
+# ✅ Dynamically load the DATABASE_URL based on the environment
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('DATABASE_URL')
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 
 # ✅ Initialize DB and Migrations
 db.init_app(app)
@@ -59,6 +63,10 @@ def get_matches(user, age_range, town, offset):
     ).offset(offset).limit(3).all()
 
     return matches
+
+@app.route("/", methods=["GET"])
+def health_check():
+    return jsonify({"response": "server is up"})
 
 # ✅ Main Endpoint
 @app.route("/penzi", methods=["POST"])

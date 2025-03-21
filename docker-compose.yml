@@ -1,0 +1,41 @@
+services:
+  backend:
+    container_name: penzi-backend
+    build: .
+    ports:
+      - "5000:5000"
+    env_file: 
+      - .env
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    command: python -m flask run
+
+  frontend:
+    container_name: penzi-frontend
+    build: ./react-chat
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./react-chat:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+
+  db:
+    container_name: penzi-db
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: kevin
+      POSTGRES_PASSWORD: kevin123
+      POSTGRES_DB: penzi_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

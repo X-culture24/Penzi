@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # ✅ Configuration
 app.secret_key = os.urandom(24)  # Secure Random Secret Key
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://kevin:kevin123@localhost/penzi_app"
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://kevin:kevin123@localhost:5432/penzi_app"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # ✅ Initialize Extensions
@@ -127,6 +127,12 @@ def process_user_input(user, user_input, phone_number):
             return "Register first: start#name#age#gender#county#town."
         return handle_more_details(user_input)
 
+    # 🟢 DESCRIBE Command
+    elif user_input.startswith("describe"):
+        if not user:
+            return "Register first: start#name#age#gender#county#town."
+        return handle_describe(user_input)
+
     # 🟢 Invalid Command
     else:
         return "Invalid command. Try again."
@@ -214,6 +220,27 @@ def handle_more_details(user_input):
         f"Ethnicity: {user_details.ethnicity}.\n"
         f"Send DESCRIBE {target_phone} to know more."
     )
+
+
+# ✅ Helper: Handle DESCRIBE Command
+def handle_describe(user_input):
+    """
+    Processes 'DESCRIBE <phone_number>' command.
+    """
+    try:
+        _, target_phone = user_input.split(" ")
+    except ValueError:
+        return "Invalid format. Use: DESCRIBE <phone_number>"
+
+    target_user = get_user_by_phone(target_phone)
+    if not target_user:
+        return "User not found."
+
+    description = SelfDescription.query.filter_by(user_id=target_user.id).first()
+    if not description:
+        return f"No description available for {target_user.name}."
+
+    return f"About {target_user.name}: {description.description}"
 
 
 # ✅ Run Flask Application
