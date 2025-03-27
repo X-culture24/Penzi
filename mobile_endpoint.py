@@ -5,13 +5,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
 from models import db, User, UserDetails, SelfDescription, Match, Message
-from dotenv import load_dotenv
 
 # ✅ Initialize Flask app
 app = Flask(__name__)
-
-# ✅ Load environment variables from .env file
-load_dotenv()
 
 # ✅ Secret Key (for session handling)
 app.secret_key = os.urandom(24)
@@ -19,8 +15,9 @@ app.secret_key = os.urandom(24)
 # ✅ Enable CORS
 CORS(app)
 
-# ✅ Database Configuration (from .env)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('DATABASE_URL')
+# ✅ Database Configuration (PostgreSQL)
+DATABASE_URI = "postgresql://kevin:kevin123@localhost:5432/penzi_app"
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # ✅ Initialize DB and Migrations
@@ -172,66 +169,6 @@ def process_user_input(user, user_input, phone_number):
         )
         return f"We have {len(matches)} who match your choice! We will send you details of {len(matches)} of them shortly. To get more details about a person, SMS their number e.g., 0722010203 to 22141\n{match_info}"
 
-    # 🟢 Handle Phone Number Lookup
-    elif user_input.isdigit() and len(user_input) == 10:
-        if not user:
-            return "Please register first using: start#name#age#gender#county#town."
-
-        target_user = get_user_by_phone(user_input)
-        if not target_user:
-            return "User not found."
-
-        user_details = UserDetails.query.filter_by(user_id=target_user.id).first()
-        if not user_details:
-            return f"No details available for {target_user.name}."
-
-        # Notify the Requested User
-        notify_user(user_input, f"Hi {target_user.name}, someone is interested in you. Send YES to confirm.")
-
-        return (
-            f"{target_user.name} ({target_user.age} years) from {target_user.town}.\n"
-            f"Education: {user_details.level_of_education}, Profession: {user_details.profession}, "
-            f"Marital: {user_details.marital_status}, Religion: {user_details.religion}, Ethnicity: {user_details.ethnicity}.\n"
-            f"Send DESCRIBE {target_user.phone_number} to know more about them."
-        )
-
-    # 🟢 Handle User Confirmation (YES Command)
-    elif user_input == "yes":
-        # Check if there is a pending match
-        pending_match = Match.query.filter_by(phone_number=phone_number, status="pending").first()
-        if pending_match:
-            # Update to 'approved' if both users confirm
-            pending_match.status = "approved"
-            db.session.commit()
-
-            # Notify both users on mutual approval
-            notify_user(phone_number, "Mutual interest confirmed! You can now message each other.")
-            notify_user(pending_match.target_phone, "Mutual interest confirmed! You can now message each other.")
-            return "Match confirmed! You can now message each other."
-
-        # Otherwise, initiate a new match request
-        return "Confirmation sent. Awaiting confirmation from the other user."
-
-    # 🟢 DESCRIBE <phone_number>
-    elif user_input.startswith("DESCRIBE"):
-        if not user:
-            return "Please register first using: start#name#age#gender#county#town."
-
-        try:
-            _, target_phone = user_input.split(" ")
-        except ValueError:
-            return "Invalid format. Use: DESCRIBE <phone_number>"
-
-        target_user = get_user_by_phone(target_phone)
-        if not target_user:
-            return "User not found."
-
-        description = SelfDescription.query.filter_by(user_id=target_user.id).first()
-        if not description:
-            return f"No self-description available for {target_user.name}."
-
-        return f"{target_user.name} describes themselves as: {description.description}."
-
     # 🟢 Default Invalid Command
     else:
         return "Invalid command. Try again."
@@ -260,7 +197,6 @@ def get_matches(user, age_range, town, offset):
 def health_check():
     return jsonify({"response": "server is up and running"})
 
-
-# ✅ Run the Flask App
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Allow external devices to connect (e.g., Android emulator)
+    app.run(host="0.0.0.0", port=5000, debug=True)
