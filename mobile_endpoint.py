@@ -90,13 +90,13 @@ def process_user_input(user, user_input, phone_number):
     # 🟢 Activation Command - Check if user exists
     if user_input.lower() == "penzi":
         if user:
-            return "You are already registered. To search for a MPENZI, SMS match#age#town to 22141. E.g., match#23-25#Kisumu"
-        return "Welcome to our dating service with 6000 potential dating partners! To register SMS start#name#age#gender#county#town to 22141. E.g., start#John Doe#26#Male#Nakuru#Naivasha"
+            return "You are already registered. To search for a MPENZI, SMS match#age#town. E.g., match#23-25#Kisumu"
+        return "Welcome to our dating service with 6000 potential dating partners! To register SMS start#name#age#gender#county#town. E.g., start#John Doe#26#Male#Nakuru#Naivasha"
 
     # 🟢 Handle User Registration - Check if already registered
     elif user_input.startswith("start#"):
         if user:
-            return "You are already registered. To search for a MPENZI, SMS match#age#town to 22141. E.g., match#23-25#Kisumu"
+            return "You are already registered. To search for a MPENZI, SMS match#age#town. E.g., match#23-25#Kisumu"
             
         try:
             _, name, age, gender, county, town = user_input.split("#")
@@ -105,7 +105,7 @@ def process_user_input(user, user_input, phone_number):
             return "Invalid format. Use: start#name#age#gender#county#town."
 
         user = create_new_user(phone_number, name, age, gender, county, town)
-        return f"Your profile has been created successfully {name}. SMS details#levelOfEducation#profession#martialStatus#religion#ethnicity to 22141. E.g. details#diploma#driver#single#christian#mijikenda"
+        return f"Your profile has been created successfully {name}. SMS details#levelOfEducation#profession#martialStatus#religion#ethnicity. E.g. details#diploma#driver#single#christian#mijikenda"
 
     # 🟢 Handle Details Registration
     elif user_input.startswith("details#"):
@@ -128,7 +128,7 @@ def process_user_input(user, user_input, phone_number):
         db.session.add(details)
         db.session.commit()
 
-        return "This is the last stage of registration. SMS a brief description of yourself to 22141 starting with the word MYSELF. E.g., MYSELF chocolate, lovely, sexy etc."
+        return "This is the last stage of registration. SMS a brief description of yourself starting with the word MYSELF. E.g., MYSELF chocolate, lovely, sexy etc."
 
     # 🟢 Handle Self Description
     elif user_input.startswith("MYSELF"):
@@ -143,7 +143,7 @@ def process_user_input(user, user_input, phone_number):
         db.session.add(self_desc)
         db.session.commit()
 
-        return "You are now registered for dating. To search for a MPENZI, SMS match#age#town to 22141 and meet the person of your dreams. E.g., match#23-25#Kisumu"
+        return "You are now registered for dating. To search for a MPENZI, SMS match#age#town E.g., match#23-25#Kisumu"
 
     # 🟢 Handle Match Request
     elif user_input.startswith("match#"):
@@ -167,7 +167,67 @@ def process_user_input(user, user_input, phone_number):
             f"{m.name} aged {m.age}, {m.phone_number}."
             for m in matches
         )
-        return f"We have {len(matches)} who match your choice! We will send you details of {len(matches)} of them shortly. To get more details about a person, SMS their number e.g., 0722010203 to 22141\n{match_info}"
+        return f"We have {len(matches)} who match your choice! We will send you details of {len(matches)} of them shortly. To get more details about a person, SMS their number e.g., 0722010203\n{match_info}"
+
+    # 🟢 Handle Phone Number Lookup
+    elif user_input.isdigit() and len(user_input) == 10:
+        if not user:
+            return "Please register first using: start#name#age#gender#county#town."
+
+        target_user = get_user_by_phone(user_input)
+        if not target_user:
+            return "User not found."
+
+        user_details = UserDetails.query.filter_by(user_id=target_user.id).first()
+        if not user_details:
+            return f"No details available for {target_user.name}."
+
+        # Notify the Requested User
+        notify_user(user_input, f"Hi {target_user.name}, someone is interested in you. Send YES to confirm.")
+
+        return (
+            f"{target_user.name} ({target_user.age} years) from {target_user.town}.\n"
+            f"Education: {user_details.level_of_education}, Profession: {user_details.profession}, "
+            f"Marital: {user_details.marital_status}, Religion: {user_details.religion}, Ethnicity: {user_details.ethnicity}.\n"
+            f"Send DESCRIBE {target_user.phone_number} to know more about them."
+        )
+
+    # 🟢 Handle User Confirmation (YES Command)
+    elif user_input == "yes":
+        # Check if there is a pending match
+        pending_match = Match.query.filter_by(phone_number=phone_number, status="pending").first()
+        if pending_match:
+            # Update to 'approved' if both users confirm
+            pending_match.status = "approved"
+            db.session.commit()
+
+            # Notify both users on mutual approval
+            notify_user(phone_number, "Mutual interest confirmed! You can now message each other.")
+            notify_user(pending_match.target_phone, "Mutual interest confirmed! You can now message each other.")
+            return "Match confirmed! You can now message each other."
+
+        # Otherwise, initiate a new match request
+        return "Confirmation sent. Awaiting confirmation from the other user."
+
+    # 🟢 DESCRIBE <phone_number>
+    elif user_input.startswith("DESCRIBE"):
+        if not user:
+            return "Please register first using: start#name#age#gender#county#town."
+
+        try:
+            _, target_phone = user_input.split(" ")
+        except ValueError:
+            return "Invalid format. Use: DESCRIBE <phone_number>"
+
+        target_user = get_user_by_phone(target_phone)
+        if not target_user:
+            return "User not found."
+
+        description = SelfDescription.query.filter_by(user_id=target_user.id).first()
+        if not description:
+            return f"No self-description available for {target_user.name}."
+
+        return f"{target_user.name} describes themselves as: {description.description}."
 
     # 🟢 Default Invalid Command
     else:

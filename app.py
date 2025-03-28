@@ -93,13 +93,13 @@ def process_user_input(user, user_input, phone_number):
     # 🟢 Activation Command - Check if user exists
     if user_input.lower() == "penzi":
         if user:
-            return "You are already registered. To search for a MPENZI, SMS match#age#town to 22141. E.g., match#23-25#Kisumu"
-        return "Welcome to our dating service with 6000 potential dating partners! To register SMS start#name#age#gender#county#town to 22141. E.g., start#John Doe#26#Male#Nakuru#Naivasha"
+            return "You are already registered. To search for a MPENZI, SMS match#age#town. E.g., match#23-25#Kisumu"
+        return "Welcome to our dating service with 6000 potential dating partners! To register SMS start#name#age#gender#county#town. E.g., start#John Doe#26#Male#Nakuru#Naivasha"
 
     # 🟢 Handle User Registration - Check if already registered
     elif user_input.startswith("start#"):
         if user:
-            return "You are already registered. To search for a MPENZI, SMS match#age#town to 22141. E.g., match#23-25#Kisumu"
+            return "You are already registered. To search for a MPENZI, SMS match#age#town. E.g., match#23-25#Kisumu"
             
         try:
             _, name, age, gender, county, town = user_input.split("#")
@@ -108,7 +108,7 @@ def process_user_input(user, user_input, phone_number):
             return "Invalid format. Use: start#name#age#gender#county#town."
 
         user = create_new_user(phone_number, name, age, gender, county, town)
-        return f"Your profile has been created successfully {name}. SMS details#levelOfEducation#profession#martialStatus#religion#ethnicity to 22141. E.g. details#diploma#driver#single#christian#mijikenda"
+        return f"Your profile has been created successfully {name}. SMS details#levelOfEducation#profession#martialStatus#religion#ethnicity. E.g. details#diploma#driver#single#christian#mijikenda"
 
     # 🟢 Handle Details Registration
     elif user_input.startswith("details#"):
@@ -131,7 +131,7 @@ def process_user_input(user, user_input, phone_number):
         db.session.add(details)
         db.session.commit()
 
-        return "This is the last stage of registration. SMS a brief description of yourself to 22141 starting with the word MYSELF. E.g., MYSELF chocolate, lovely, sexy etc."
+        return "This is the last stage of registration. SMS a brief description of yourself starting with the word MYSELF. E.g., MYSELF chocolate, lovely, sexy etc."
 
     # 🟢 Handle Self Description
     elif user_input.startswith("MYSELF"):
@@ -146,7 +146,7 @@ def process_user_input(user, user_input, phone_number):
         db.session.add(self_desc)
         db.session.commit()
 
-        return "You are now registered for dating. To search for a MPENZI, SMS match#age#town to 22141 and meet the person of your dreams. E.g., match#23-25#Kisumu"
+        return "You are now registered for dating. To search for a MPENZI, SMS match#age#town E.g., match#23-25#Kisumu"
 
     # 🟢 Handle Match Request
     elif user_input.startswith("match#"):
@@ -170,7 +170,7 @@ def process_user_input(user, user_input, phone_number):
             f"{m.name} aged {m.age}, {m.phone_number}."
             for m in matches
         )
-        return f"We have {len(matches)} who match your choice! We will send you details of {len(matches)} of them shortly. To get more details about a person, SMS their number e.g., 0722010203 to 22141\n{match_info}"
+        return f"We have {len(matches)} who match your choice! We will send you details of {len(matches)} of them shortly. To get more details about a person, Send DETAILS 0712345678\n{match_info}"
 
     # 🟢 Handle Phone Number Lookup
     elif user_input.isdigit() and len(user_input) == 10:
