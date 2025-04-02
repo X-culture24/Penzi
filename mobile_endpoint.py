@@ -83,7 +83,7 @@ def penzi_chatbot():
 
     return jsonify({"response": response})
 
-# ✅ Process User Input (UPDATED TO FILTER REGISTERED USERS)
+# ✅ Process User Input (with DETAILS command fixed)
 def process_user_input(user, user_input, phone_number):
     user_input = user_input.strip()
 
@@ -189,8 +189,38 @@ def process_user_input(user, user_input, phone_number):
             f"{target_user.name} ({target_user.age} years) from {target_user.town}.\n"
             f"Education: {user_details.level_of_education}, Profession: {user_details.profession}, "
             f"Marital: {user_details.marital_status}, Religion: {user_details.religion}, Ethnicity: {user_details.ethnicity}.\n"
-            f"Send DESCRIBE {target_user.phone_number} to know more about them."
+            f"To get more details about this match, send DETAILS {target_user.phone_number}"
         )
+
+    # 🟢 Handle DETAILS <phone_number> command (updated)
+    elif user_input.upper().startswith("DETAILS"):
+        if not user:
+            return "Please register first using: start#name#age#gender#county#town."
+
+        try:
+            parts = user_input.split()
+            if len(parts) != 2 or len(parts[1]) != 10:
+                return "Invalid format. Use: DETAILS 0712345678"
+            
+            target_phone = parts[1]
+            target_user = get_user_by_phone(target_phone)
+            
+            if not target_user:
+                return "User not found."
+
+            # Fetch user details instead of self-description
+            user_details = UserDetails.query.filter_by(user_id=target_user.id).first()
+            if not user_details:
+                return f"No details available for {target_user.name}."
+
+            return (
+                f"{target_user.name} ({target_user.age} years) from {target_user.town}.\n"
+                f"Education: {user_details.level_of_education}, Profession: {user_details.profession}, "
+                f"Marital: {user_details.marital_status}, Religion: {user_details.religion}, Ethnicity: {user_details.ethnicity}.\n"
+            )
+
+        except Exception as e:
+            return "Invalid format. Use: DETAILS 0712345678"
 
     # 🟢 Handle User Confirmation (YES Command)
     elif user_input == "yes":
@@ -208,26 +238,6 @@ def process_user_input(user, user_input, phone_number):
 
         # Otherwise, initiate a new match request
         return "Confirmation sent. Awaiting confirmation from the other user."
-
-    # 🟢 DESCRIBE <phone_number>
-    elif user_input.startswith("DESCRIBE"):
-        if not user:
-            return "Please register first using: start#name#age#gender#county#town."
-
-        try:
-            _, target_phone = user_input.split(" ")
-        except ValueError:
-            return "Invalid format. Use: DESCRIBE <phone_number>"
-
-        target_user = get_user_by_phone(target_phone)
-        if not target_user:
-            return "User not found."
-
-        description = SelfDescription.query.filter_by(user_id=target_user.id).first()
-        if not description:
-            return f"No self-description available for {target_user.name}."
-
-        return f"{target_user.name} describes themselves as: {description.description}."
 
     # 🟢 Default Invalid Command
     else:
