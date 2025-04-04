@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from models import db, User, UserDetails, SelfDescription, Match, Message
+from models import db, User, UserDetails, SelfDescription, Match, Message ,MatchRequest
 from dotenv import load_dotenv
 
 # Initialize Flask app
@@ -48,23 +48,40 @@ def create_new_user(phone_number, name, age, gender, county, town):
     db.session.commit()
     return new_user
 
-def create_match(phone_number, target_phone):
-    # Check if match already exists
-    existing_match = Match.query.filter_by(
-        phone_number=phone_number,
-        target_phone=target_phone
-    ).first()
+def create_match(phone_number, user_input):
+    # First get or create the necessary related records
+    user = User.query.filter_by(phone_number=phone_number).first()
+    if not user:
+        return False
     
-    if not existing_match:
-        new_match = Match(
-            phone_number=phone_number,
-            target_phone=target_phone,
-            status="pending"
+    # Create or get a MatchRequest
+    match_request = MatchRequest.query.filter_by(user_id=user.id).first()
+    if not match_request:
+        match_request = MatchRequest(
+            user_id=user.id,
+            age_range="25-30",  # Set appropriate values
+            town="Nairobi"       # Set appropriate values
         )
-        db.session.add(new_match)
+        db.session.add(match_request)
         db.session.commit()
-        return new_match
-    return existing_match
+    
+    # Get the matched user (you need logic to determine this)
+    matched_user = User.query.filter_by(phone_number=user_input).first()
+    if not matched_user:
+        return False
+    
+    # Now create the Match with all required fields
+    new_match = Match(
+        request_id=match_request.id,
+        matched_user_id=matched_user.id,
+        phone_number=phone_number,
+        target_phone=user_input,
+        status='pending'
+    )
+    
+    db.session.add(new_match)
+    db.session.commit()
+    return True
 
 # Main Chatbot Endpoint
 @app.route("/penzi", methods=["POST"])
